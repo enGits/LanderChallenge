@@ -11,6 +11,7 @@ SCREEN_TITLE   = 'enGits Lunar Lander Challenge'
 NUM_MOUNTAINS  = 1000
 ALT0           = 2.0
 FEAT_THRESHOLD = 1000
+MOON_COLOR     = arcade.color.DARK_GRAY
 
 
 class SurfaceFeature():
@@ -40,10 +41,10 @@ class SurfaceFeature():
             y3  = x2 * math.sin(ref.alpha) + y2 * math.cos(ref.alpha)
             _x  = x3 * self.planet.game.scaleFactor() + SCREEN_WIDTH/2
             _y  = y3 * self.planet.game.scaleFactor() + SCREEN_HEIGHT/2
-            if _x < -FEAT_THRESHOLD or _x > SCREEN_WIDTH + FEAT_THRESHOLD:
-                return
-            if _y < -FEAT_THRESHOLD or _y > SCREEN_HEIGHT + FEAT_THRESHOLD:
-                return
+            # if _x < -FEAT_THRESHOLD or _x > SCREEN_WIDTH + FEAT_THRESHOLD:
+            #     return
+            # if _y < -FEAT_THRESHOLD or _y > SCREEN_HEIGHT + FEAT_THRESHOLD:
+            #     return
             pts.append((_x, _y))
         arcade.draw_polygon_filled(pts, self.color)
 
@@ -52,7 +53,7 @@ class Mountain(SurfaceFeature):
     
     def __init__(self, planet, height, width, middle_width=None, theta=0):  
         super().__init__(planet, theta)
-        self.color  = arcade.color.LIGHT_GRAY
+        self.color  = MOON_COLOR
         if middle_width is None:
             middle_width = width/2
         self.points.append((       -width/2, -100))
@@ -292,10 +293,11 @@ class Spacecraft(Body):
         self.target       = None
 
     def update_metrics(self):
-        r = math.sqrt(self.x**2 + self.y**2)
-        R = self.game.planet.radius
-        if r - R < 10e5:
-            self.game.scale_factor = min(0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / R, self.game.real_zoom_factor)
+        r   = math.sqrt(self.x**2 + self.y**2)
+        R   = self.game.planet.radius
+        alt = r - R
+        if alt < 10e3 and self.game.reference == self:
+            self.game.scale_factor = min(0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / alt, self.game.real_zoom_factor)
         super().update_metrics()
         if self.docked_to is not None:
             a  = math.radians(self.docked_to._a)
@@ -501,6 +503,7 @@ class OrbitGame(arcade.Window):
         self.scale_factor        = 0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / self.planet.radius
         self.initial_scale       = self.scale
         self.planet.scale_factor = self.scale_factor
+        self.planet.color        = MOON_COLOR
         self.planet.name         = 'Moon'
         
         # Create random mountains on the Lunar surface
