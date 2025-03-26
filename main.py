@@ -395,12 +395,14 @@ class Spacecraft(Body):
                 self.fuel = 0.0
             if self.thrust_level > 0:
                 update_trajectory = True
-        alt = math.sqrt((self.x - self.game.planet.x)**2 + (self.y - self.game.planet.y)**2) - self.game.planet.radius
+        dx = self.x - self.game.planet.x
+        dy = self.y - self.game.planet.y
+        r   = math.sqrt(dx**2 + dy**2)
+        alt = r - self.game.planet.radius
         if alt < ALT0:            
             u_abs = math.sqrt(self.u**2 + self.v**2)
             if u_abs > 5.0:
-                # CRASH
-                # arcade.exit()
+                # CRASH if landing too fast
                 self.crashed = True
             self.u = 0
             self.v = 0
@@ -408,16 +410,12 @@ class Spacecraft(Body):
             self.acc_y = 0
             self.omega = 0
             self.acc_omega = 0
-            dx = self.x - self.game.planet.x
-            dy = self.y - self.game.planet.y
-            r   = math.sqrt(dx**2 + dy**2)
             dx /= r
             dy /= r
             beta  = math.degrees(math.atan2(dx, dy))
             alpha = math.degrees(self.alpha)
             if abs(alpha - beta) > 20:
-                # CRASH
-                # arcade.exit()
+                # CRASH due to bad landing angle
                 self.crashed = True
             self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
             self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
