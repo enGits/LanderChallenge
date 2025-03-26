@@ -295,6 +295,7 @@ class Spacecraft(Body):
         r = math.sqrt(self.x**2 + self.y**2)
         R = self.game.planet.radius
         if r - R < 10e5:
+            self.game.scale_factor = min(0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / R, self.game.real_zoom_factor)
         super().update_metrics()
         if self.docked_to is not None:
             a  = math.radians(self.docked_to._a)
@@ -482,10 +483,11 @@ class OrbitGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-        self.time_factor = 1.0
-        self.sim_dt      = 0.1
-        self.sim_time    = 0.0
-        self.real_zoom   = False
+        self.time_factor      = 1.0
+        self.sim_dt           = 0.1
+        self.sim_time         = 0.0
+        self.real_zoom        = False
+        self.real_zoom_factor = 5.74
 
         arcade.set_background_color(arcade.color.BLACK)
         self.body_list = []
@@ -550,7 +552,7 @@ class OrbitGame(arcade.Window):
         
     def scaleFactor(self):
         if self.real_zoom:
-            return 5.74 #0.17410714285714285
+            return self.real_zoom_factor
         return self.scale_factor
         
     def on_draw(self):
@@ -663,7 +665,7 @@ class OrbitGame(arcade.Window):
             w  = min(math.pi, max(-math.pi, w))
             self.control_craft.omega = w
             
-        elif key == arcade.key.NUM_EQUAL:
+        elif key == arcade.key.NUM_MULTIPLY:
             if self.control_craft.trajectory is None:
                 self.control_craft.compute_orbit_2d(self.planet)
             else:
