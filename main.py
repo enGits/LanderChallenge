@@ -10,8 +10,10 @@ SCREEN_HEIGHT  = 1200
 SCREEN_TITLE   = 'enGits Lunar Lander Challenge'
 NUM_MOUNTAINS  = 1000
 ALT0           = 2.0
-FEAT_THRESHOLD = 1000
-MOON_COLOR     = arcade.color.DARK_GRAY
+MOON_COLOR     = (100,100,100)
+GAIN           = 5.0
+ERROR_TIME     = 5.0
+ZOOM_LENGTH    = 0.4
 
 
 class SurfaceFeature():
@@ -30,6 +32,9 @@ class SurfaceFeature():
         y0    = ref.y
         pts   = []
         #
+        threshold = max(SCREEN_HEIGHT, SCREEN_WIDTH)
+        #
+        draw = False
         for X in self.points:
             x1  = X[0]
             y1  = X[1] + self.planet.radius
@@ -41,12 +46,11 @@ class SurfaceFeature():
             y3  = x2 * math.sin(ref.alpha) + y2 * math.cos(ref.alpha)
             _x  = x3 * self.planet.game.scaleFactor() + SCREEN_WIDTH/2
             _y  = y3 * self.planet.game.scaleFactor() + SCREEN_HEIGHT/2
-            # if _x < -FEAT_THRESHOLD or _x > SCREEN_WIDTH + FEAT_THRESHOLD:
-            #     return
-            # if _y < -FEAT_THRESHOLD or _y > SCREEN_HEIGHT + FEAT_THRESHOLD:
-            #     return
+            if _x > -threshold and _x < threshold and _y > -threshold and _y < threshold:
+                draw = True
             pts.append((_x, _y))
-        arcade.draw_polygon_filled(pts, self.color)
+        if draw:
+            arcade.draw_polygon_filled(pts, self.color)
 
     
 class Mountain(SurfaceFeature):
@@ -291,13 +295,17 @@ class Spacecraft(Body):
         self.dry_mass     = 0.0
         self.dock_dist    = 0.0
         self.target       = None
+        #
+        self.tgt_vvel     = 0.0
+        self.auto_pilot   = False
+        self.errI         = 0.0
 
     def update_metrics(self):
         r   = math.sqrt(self.x**2 + self.y**2)
         R   = self.game.planet.radius
         alt = r - R
         if alt < 10e3 and self.game.reference == self:
-            self.game.scale_factor = min(0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / alt, self.game.real_zoom_factor)
+            self.game.scale_factor = min(ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / alt, self.game.real_zoom_factor)
         super().update_metrics()
         if self.docked_to is not None:
             a  = math.radians(self.docked_to._a)
@@ -341,6 +349,8 @@ class Spacecraft(Body):
                 arcade.draw_text('f.  {:.1f}%'.format(100*self.fuel/self.max_fuel), x, y - fs - 2, col, fs, font_name=fn)
                 arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
             #
+            if self.auto_pilot:
+                arcade.draw_text('** AUTO **', x, y - 3*fs - 6, col, fs, font_name=fn)
             u = self.u
             v = self.v
             u_crit = 1.0
@@ -424,16 +434,34 @@ class Spacecraft(Body):
         if update_trajectory and self.trajectory is not None:
             self.compute_orbit_2d(self.game.planet)
         super().update_physics(dt, Fx, Fy)
+        
+    def resetAutoPilot(self):
+        self.errI = 0.0
+        self.tgt_hvel = 0.0        
+        
+    def autoPilot(self, dt):
+        if self.auto_pilot:
+            dx  = self.x - self.game.planet.x
+            dy  = self.y - self.game.planet.y
+            r   = math.sqrt(dx**2 + dy**2)
+            dx /= r
+            dy /= r
+            vel = self.u * dx + self.v * dy
+            err = self.tgt_hvel - vel
+            self.errI += err * dt
+            self.thrust_level = min(100.0, max(0.0, GAIN*(err + self.errI/ERROR_TIME)))                    
     
     def increase_thrust(self, amount):
-        self.thrust_level = min(100, self.thrust_level + amount)
-        idx = int(round(4*self.thrust_level/100))
-        self.sprite.set_texture(idx)
+        if not self.auto_pilot:            
+            self.thrust_level = min(100, self.thrust_level + amount)
+            idx = int(round(4*self.thrust_level/100))
+            self.sprite.set_texture(idx)
         
     def decrease_thrust(self, amount):
-        self.thrust_level = max(0, self.thrust_level - amount)
-        idx = int(round(4*self.thrust_level/100))
-        self.sprite.set_texture(idx)
+        if not self.auto_pilot:
+            self.thrust_level = max(0, self.thrust_level - amount)
+            idx = int(round(4*self.thrust_level/100))
+            self.sprite.set_texture(idx)
         
     def undock(self):
         if self.docked_to is not None:
@@ -527,7 +555,7 @@ class OrbitGame(arcade.Window):
         self.spacecraft.fuel         = 11e3
         self.spacecraft.max_fuel     = self.spacecraft.fuel
         self.spacecraft.ISP          = 330.0
-        self.spacecraft.y            = self.planet.radius + 110e3
+        self.spacecraft.y            = self.planet.radius + 300e3
         self.spacecraft.u            = math.sqrt(Body.G * self.planet.mass / self.spacecraft.y)
         self.spacecraft.scale_factor = 10*self.scale_factor
         self.spacecraft.name         = 'Main Craft'
@@ -588,6 +616,7 @@ class OrbitGame(arcade.Window):
         arcade.draw_text('alpha: {:.2f}deg'.format(math.degrees(self.control_craft.alpha)), 10, 130, color, size)
 
     def on_update(self, delta_time):
+        self.lander.autoPilot(delta_time * self.time_factor)
         phys_time_1 = datetime.datetime.now()
         N = max(1, int(delta_time * self.time_factor / self.sim_dt))
         dt = self.time_factor * delta_time / N                
@@ -633,16 +662,22 @@ class OrbitGame(arcade.Window):
                 self.scale_factor /= 1.1
                 
         elif key == arcade.key.UP:
-            if modifiers & arcade.key.MOD_SHIFT:
-                self.control_craft.increase_thrust(10)
+            if self.control_craft.auto_pilot:
+                self.control_craft.tgt_hvel = min(20.0, self.control_craft.tgt_hvel + 1)
             else:
-                self.control_craft.increase_thrust(1)
+                if modifiers & arcade.key.MOD_SHIFT:
+                    self.control_craft.increase_thrust(10)
+                else:
+                    self.control_craft.increase_thrust(1)
             
         elif key == arcade.key.DOWN:
-            if modifiers & arcade.key.MOD_SHIFT:
-                self.control_craft.decrease_thrust(10)
+            if self.control_craft.auto_pilot:
+                self.control_craft.tgt_hvel = max(-20.0, self.control_craft.tgt_hvel - 1)
             else:
-                self.control_craft.decrease_thrust(1)
+                if modifiers & arcade.key.MOD_SHIFT:
+                    self.control_craft.decrease_thrust(10)
+                else:
+                    self.control_craft.decrease_thrust(1)
                 
         elif key == arcade.key.PERIOD:
             self.control_craft.increase_thrust(0.01)
@@ -701,6 +736,12 @@ class OrbitGame(arcade.Window):
                     self.control_craft.target = self.spacecraft
                 else:
                     self.control_craft.target = None
+                    
+        elif key == arcade.key.A:
+            if self.control_craft == self.lander:
+                self.control_craft.auto_pilot = not self.control_craft.auto_pilot
+                if self.control_craft.auto_pilot:
+                    self.control_craft.resetAutoPilot()
                     
         #
         # debug final approach
