@@ -1,6 +1,8 @@
 # LanderChallenge
 enGits Lander Challenge
 
+- esc: to exit
+
 ## Arrow Keys
 - left: rotate left
 - right: rotate right
@@ -14,7 +16,7 @@ enGits Lander Challenge
 - 2: switch control to lander (if not docked)
 - 0: undock/dock
 - ENTER: switch to 1:1 zoom level (required for docking actions)
-- =: compute/update trajectory (if Moon is reference object)
+- *: compute/update trajectory (if Moon is reference object)
 - +: zoom in
 - -: zoom out
 - shift +: increase simulation speed
