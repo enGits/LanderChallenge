@@ -14,7 +14,7 @@ MOON_COLOR     = (100,100,100)
 GAIN           = 5.0
 ERROR_TIME     = 5.0
 ZOOM_LENGTH    = 0.4
-
+FEAT_THRESHOLD = 1000
 
 class SurfaceFeature():
     
@@ -32,7 +32,10 @@ class SurfaceFeature():
         y0    = ref.y
         pts   = []
         #
-        threshold = max(SCREEN_HEIGHT, SCREEN_WIDTH)
+        x_min = -FEAT_THRESHOLD
+        x_max =  FEAT_THRESHOLD + SCREEN_WIDTH
+        y_min = -FEAT_THRESHOLD
+        y_max =  FEAT_THRESHOLD + SCREEN_HEIGHT
         #
         draw = False
         for X in self.points:
@@ -46,7 +49,7 @@ class SurfaceFeature():
             y3  = x2 * math.sin(ref.alpha) + y2 * math.cos(ref.alpha)
             _x  = x3 * self.planet.game.scaleFactor() + SCREEN_WIDTH/2
             _y  = y3 * self.planet.game.scaleFactor() + SCREEN_HEIGHT/2
-            if _x > -threshold and _x < threshold and _y > -threshold and _y < threshold:
+            if _x > x_min and _x < x_max and _y > y_min and _y < y_max:
                 draw = True
             pts.append((_x, _y))
         if draw:
@@ -295,6 +298,7 @@ class Spacecraft(Body):
         self.dry_mass     = 0.0
         self.dock_dist    = 0.0
         self.target       = None
+        self.landed       = False
         #
         self.tgt_vvel     = 0.0
         self.auto_pilot   = False
@@ -341,7 +345,7 @@ class Spacecraft(Body):
                 arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
             else:
                 if self == self.game.lander:
-                    col = arcade.color.RED
+                    col = arcade.color.LIGHT_RED_OCHRE
                 if vel < 5.0:
                     col = grn
                 arcade.draw_text('m/s {:.2f}'.format(vel), x, y + fs + 2, col, fs, font_name=fn)
@@ -350,7 +354,7 @@ class Spacecraft(Body):
                 arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
             #
             if self.auto_pilot:
-                arcade.draw_text('** AUTO **', x, y - 3*fs - 6, col, fs, font_name=fn)
+                arcade.draw_text('tgt {:.2f}'.format(self.tgt_vvel), x, y - 3*fs - 6, col, fs, font_name=fn)
             u = self.u
             v = self.v
             u_crit = 1.0
@@ -405,32 +409,35 @@ class Spacecraft(Body):
             if self.thrust_level > 0:
                 update_trajectory = True
         alt = math.sqrt((self.x - self.game.planet.x)**2 + (self.y - self.game.planet.y)**2) - self.game.planet.radius
-        if alt < ALT0:            
-            u_abs = math.sqrt(self.u**2 + self.v**2)
-            if u_abs > 5.0:
-                # CRASH
-                arcade.exit()
-            self.u = 0
-            self.v = 0
-            self.acc_x = 0
-            self.acc_y = 0
-            self.omega = 0
-            self.acc_omega = 0
-            dx = self.x - self.game.planet.x
-            dy = self.y - self.game.planet.y
-            r   = math.sqrt(dx**2 + dy**2)
-            dx /= r
-            dy /= r
-            beta  = math.degrees(math.atan2(dx, dy))
-            alpha = math.degrees(self.alpha)
-            if abs(alpha - beta) > 20:
-                # CRASH
-                arcade.exit()
-            self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
-            self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
-            self.trajectory = None
-            self.thrust_level = 0
-            self.sprite.set_texture(0)
+        if alt < ALT0:
+            if not self.landed or self.thrust_level < 0.1:          
+                u_abs = math.sqrt(self.u**2 + self.v**2)
+                if u_abs > 5.0:
+                    # CRASH
+                    arcade.exit()
+                self.u = 0
+                self.v = 0
+                self.acc_x = 0
+                self.acc_y = 0
+                self.omega = 0
+                self.acc_omega = 0
+                dx = self.x - self.game.planet.x
+                dy = self.y - self.game.planet.y
+                r   = math.sqrt(dx**2 + dy**2)
+                dx /= r
+                dy /= r
+                beta  = math.degrees(math.atan2(dx, dy))
+                alpha = math.degrees(self.alpha)
+                if abs(alpha - beta) > 20:
+                    # CRASH
+                    arcade.exit()
+                self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
+                self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
+                self.trajectory = None
+                self.thrust_level = 0
+                self.sprite.set_texture(0)
+                self.landed = True
+                    
         if update_trajectory and self.trajectory is not None:
             self.compute_orbit_2d(self.game.planet)
         super().update_physics(dt, Fx, Fy)
@@ -439,15 +446,26 @@ class Spacecraft(Body):
         self.errI = 0.0
         self.tgt_hvel = 0.0        
         
+    def verticalVelocity(self):
+        dx  = self.x - self.game.planet.x
+        dy  = self.y - self.game.planet.y
+        r   = math.sqrt(dx**2 + dy**2)
+        dx /= r
+        dy /= r
+        return self.u * dx + self.v * dy
+        
+    def altitude(self):
+        dx  = self.x - self.game.planet.x
+        dy  = self.y - self.game.planet.y
+        r   = math.sqrt(dx**2 + dy**2)
+        return r - self.game.planet.radius
+        
     def autoPilot(self, dt):
-        if self.auto_pilot:
-            dx  = self.x - self.game.planet.x
-            dy  = self.y - self.game.planet.y
-            r   = math.sqrt(dx**2 + dy**2)
-            dx /= r
-            dy /= r
-            vel = self.u * dx + self.v * dy
-            err = self.tgt_hvel - vel
+        if self.auto_pilot:     
+            if self.altitude() > 5000.0:
+                self.auto_pilot = False
+                return       
+            err = self.tgt_vvel - self.verticalVelocity()
             self.errI += err * dt
             self.thrust_level = min(100.0, max(0.0, GAIN*(err + self.errI/ERROR_TIME)))                    
     
@@ -663,7 +681,7 @@ class OrbitGame(arcade.Window):
                 
         elif key == arcade.key.UP:
             if self.control_craft.auto_pilot:
-                self.control_craft.tgt_hvel = min(20.0, self.control_craft.tgt_hvel + 1)
+                self.control_craft.tgt_vvel = min(20.0, self.control_craft.tgt_vvel + 1)
             else:
                 if modifiers & arcade.key.MOD_SHIFT:
                     self.control_craft.increase_thrust(10)
@@ -672,7 +690,7 @@ class OrbitGame(arcade.Window):
             
         elif key == arcade.key.DOWN:
             if self.control_craft.auto_pilot:
-                self.control_craft.tgt_hvel = max(-20.0, self.control_craft.tgt_hvel - 1)
+                self.control_craft.tgt_vvel = max(-20.0, self.control_craft.tgt_vvel - 1)
             else:
                 if modifiers & arcade.key.MOD_SHIFT:
                     self.control_craft.decrease_thrust(10)
@@ -742,6 +760,7 @@ class OrbitGame(arcade.Window):
                 self.control_craft.auto_pilot = not self.control_craft.auto_pilot
                 if self.control_craft.auto_pilot:
                     self.control_craft.resetAutoPilot()
+                    self.control_craft.tgt_vvel = min(20.0, max(-20.0, round(self.control_craft.v)))
                     
         #
         # debug final approach
@@ -758,7 +777,7 @@ class OrbitGame(arcade.Window):
             L.acc_x = 0
             L.acc_y = 0
             L.x = 0
-            L.y = self.planet.radius + 10e3
+            L.y = -(self.planet.radius + 10e3)
             L.docked_to = None
             L.dock()
 
