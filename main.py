@@ -740,12 +740,66 @@ class OrbitGame(arcade.View):
             L.dock()
 
 
-# def main():
-#     game = OrbitGame()
-#     arcade.run()
+class TutorialView(arcade.View):
+    def on_show(self):
+        arcade.set_background_color(arcade.color.DARK_GREEN)
 
-# if __name__ == "__main__":
-#     main()
+    def on_draw(self):
+        self.clear()
+        
+        # Title
+        arcade.draw_text("Lander Challenge", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 80,
+                         arcade.color.YELLOW, font_size=30, anchor_x="center")
+        arcade.draw_text("enGits Lander Challenge", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 120,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+        # Controls text
+        tutorial_text = [
+            "- ESC: to exit",
+            "",
+            "## Arrow Keys",
+            "- LEFT: Rotate left",
+            "- RIGHT: Rotate right",
+            "- UP: Increase thrust by 1%",
+            "- DOWN: Decrease thrust by 1%",
+            "- SHIFT + UP: Increase thrust by 10%",
+            "- SHIFT + DOWN: Decrease thrust by 10%",
+            "",
+            "## NUM-PAD",
+            "- 1: Switch control to main craft",
+            "- 2: Switch control to lander (if not docked)",
+            "- 0: Undock/dock",
+            "- ENTER: Switch to 1:1 zoom level (required for docking actions)",
+            "- *: Compute/update trajectory (if Moon is reference object)",
+            "- +: Zoom in",
+            "- -: Zoom out",
+            "- SHIFT +: Increase simulation speed",
+            "- SHIFT -: Decrease simulation speed",
+            "",
+            "## Other Keys",
+            "- SPACE: Cycle through reference objects",
+            "- ,: Decrease thrust by 0.01%",
+            "- <: Decrease thrust by 0.1%",
+            "- .: Increase thrust by 0.01%",
+            "- >: Increase thrust by 0.1%",
+            "- SHIFT + F5: Put lander 10km above lunar surface (for debugging)",
+            "",
+            "Press ESC to return to Menu"
+        ]
+
+        y_position = SCREEN_HEIGHT - 160
+        for line in tutorial_text:
+            arcade.draw_text(line, SCREEN_WIDTH / 2, y_position,
+                             arcade.color.WHITE if "##" not in line else arcade.color.YELLOW,
+                             font_size=16 if "##" not in line else 18,
+                             anchor_x="center")
+            y_position -= 30  # Move down for each line
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ESCAPE:
+            menu = MainMenu()
+            self.window.show_view(menu)  # Return to the main menu
+
 
 class MainMenu(arcade.View):
     def on_show(self):
@@ -753,20 +807,28 @@ class MainMenu(arcade.View):
 
     def on_draw(self):
         self.clear()
-        arcade.draw_text("Orbit Game", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 50,
+        arcade.draw_text("Orbit Game", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
                          arcade.color.WHITE, font_size=40, anchor_x="center")
-        arcade.draw_text("Press ENTER to Start", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+        arcade.draw_text("Press ENTER to Start", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.ENTER:
             self.start_game()
+        elif key == arcade.key.T:  # New tutorial key
+            tutorial = TutorialView()
+            self.window.show_view(tutorial)
+        elif key == arcade.key.ESCAPE:
+            arcade.exit()
 
     def start_game(self):
-        """Start the game view."""
         print("Game Starts!")
         game = OrbitGame()  
-        self.window.show_view(game) 
+        self.window.show_view(game)  
 
 
 class GameOver(arcade.View):
