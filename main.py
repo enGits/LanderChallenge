@@ -564,7 +564,7 @@ class Spacecraft(Body):
     
 
 class OrbitGame(arcade.View):
-    def __init__(self):
+    def __init__(self, level=1):
         # super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         super().__init__()
 
@@ -643,6 +643,31 @@ class OrbitGame(arcade.View):
         
         arcade.schedule(self.on_update, 1 / 30)
         
+        self.level = level
+        if self.level == 2:
+            self.set_level2()
+        elif self.level == 3:
+            self.set_level3()
+
+    def set_level2(self):
+        L = self.lander
+        self.control_craft = L
+        self.reference = L
+        L.u = 0
+        L.v = 0
+        L.alpha = 0
+        L.omega = 0
+        L.acc_omega = 0
+        L.acc_x = 0
+        L.acc_y = 0
+        L.x = 0
+        L.y = -(self.planet.radius + 10e3)
+        L.docked_to = None
+        L.dock()
+
+    def set_level3(self):
+        print("Level 3 init")
+
     def scaleFactor(self):
         return self.scale_factor
         
@@ -770,7 +795,7 @@ class OrbitGame(arcade.View):
                 self.game_over()
                 
     def game_over(self):
-        print("Game Over!")
+        # print("Game Over!")
         if self.show_crashed:
             arcade.schedule_once(self.switch_to_game_over_view, 4)
         else:
@@ -991,7 +1016,7 @@ class TutorialView(arcade.View):
             self.game_view.paused = False  
             self.window.show_view(self.game_view)  
 
-        elif key == arcade.key.ENTER:
+        elif key == arcade.key.ENTER or key == arcade.key.NUM_ENTER:
             new_game = OrbitGame() 
             self.window.show_view(new_game)
 
@@ -1022,7 +1047,7 @@ class MainMenu(arcade.View):
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.ENTER:
+        if key == arcade.key.ENTER or key == arcade.key.NUM_ENTER:
             self.start_game()
         elif key == arcade.key.T: 
             tutorial = TutorialView(self)
@@ -1031,8 +1056,44 @@ class MainMenu(arcade.View):
             arcade.exit()
 
     def start_game(self):
-        print("Game Starts!")
-        game = OrbitGame()  
+        # print("Game Starts!")
+        menu = LevelMenu()  
+        self.window.show_view(menu)  
+
+
+class LevelMenu(arcade.View):
+    def __init__(self):
+        super().__init__()
+        arcade.set_background_color(arcade.color.BLACK)
+        self.stars = [(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)) for _ in range(100)]  
+
+    def on_draw(self):
+        self.clear()
+        for star in self.stars:
+            arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE) 
+
+        arcade.draw_text("Level 1", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Level 2", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Level 3", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+                         arcade.color.YELLOW, font_size=20, anchor_x="center")
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.KEY_1 or key == arcade.key.NUM_1:
+            self.start_game(1)
+        elif key == arcade.key.KEY_2 or key == arcade.key.NUM_2: 
+            self.start_game(2)
+        elif key == arcade.key.KEY_3 or key == arcade.key.NUM_3: 
+            self.start_game(3)
+        elif key == arcade.key.ESCAPE:
+            arcade.exit()
+
+    def start_game(self, level):
+        # print("Game Starts!")
+        game = OrbitGame(level)  
         self.window.show_view(game)  
 
 
@@ -1048,7 +1109,7 @@ class GameOver(arcade.View):
             arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE)
         arcade.draw_text("Game Over", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
                          arcade.color.RED, font_size=40, anchor_x="center")
-        arcade.draw_text("Press ENTER to Play Again", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+        arcade.draw_text("Press ENTER to Restart", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
                          arcade.color.YELLOW, font_size=20, anchor_x="center")
@@ -1056,7 +1117,7 @@ class GameOver(arcade.View):
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.ENTER:
+        if key == arcade.key.ENTER or key == arcade.key.NUM_ENTER:
             self.restart_game() 
         elif key == arcade.key.T: 
             tutorial = TutorialView(self)
@@ -1065,9 +1126,9 @@ class GameOver(arcade.View):
             arcade.exit() 
 
     def restart_game(self):
-        print("Game Restarts!")
+        # print("Game Restarts!")
         self.window.clear()
-        game = OrbitGame() 
+        game = MainMenu() 
         self.window.show_view(game) 
 
 
