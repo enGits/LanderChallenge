@@ -461,9 +461,9 @@ class Spacecraft(Body):
                 dy /= r
                 beta  = math.degrees(math.atan2(dx, dy))
                 alpha = math.degrees(self.alpha)
-                if abs(alpha - beta) > 20:
+                if abs((alpha - beta + 180) % 360 - 180) > 20:
                     # CRASH due to bad landing angle
-                    print("Crashed! Bad landing angle! " + str(abs(alpha - beta)))
+                    print("Crashed! Bad landing angle! " + str((alpha - beta) % 360))
                     self.crashed = True
                 self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
                 self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
