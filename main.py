@@ -315,6 +315,7 @@ class Spacecraft(Body):
         self.tgt_vvel     = 0.0
         self.auto_pilot   = False
         self.errI         = 0.0
+        self.crashed      = False
 
     def update_metrics(self):
         if self.game.reference != self.game.planet:
@@ -435,8 +436,8 @@ class Spacecraft(Body):
             if not self.landed or self.thrust_level < 0.1:          
                 u_abs = math.sqrt(self.u**2 + self.v**2)
                 if u_abs > 5.0:
-                    # CRASH
-                    arcade.exit()
+                    # CRASH if landing too fast
+                    self.crashed = True
                 self.u = 0
                 self.v = 0
                 self.acc_x = 0
@@ -451,8 +452,8 @@ class Spacecraft(Body):
                 beta  = math.degrees(math.atan2(dx, dy))
                 alpha = math.degrees(self.alpha)
                 if abs(alpha - beta) > 20:
-                    # CRASH
-                    arcade.exit()
+                    # CRASH due to bad landing angle
+                    self.crashed = True
                 self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
                 self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
                 self.trajectory = None
@@ -549,9 +550,10 @@ class Spacecraft(Body):
                 self.trajectory = None
     
 
-class OrbitGame(arcade.Window):
+class OrbitGame(arcade.View):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        # super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__()
 
         self.time_factor      = 1.0
         self.sim_dt           = 0.1
@@ -563,13 +565,16 @@ class OrbitGame(arcade.Window):
         self.body_list = []
         self.sprite_list = arcade.SpriteList()
 
+        self.game_running = True 
+        self.paused = False  
+
         # Planet parameters
         self.planet = Body(self)        
         self.planet.radius       = 1737.4e3      # Moon radius in metres
         self.planet.mass         = 7.34767309e22 # Moon mass in kg
         self.reference           = self.planet
         self.scale_factor        = 0.25*min(SCREEN_WIDTH, SCREEN_HEIGHT) / self.planet.radius
-        self.initial_scale       = self.scale
+        # self.initial_scale       = self.scale
         self.planet.scale_factor = self.scale_factor
         self.planet.color        = MOON_COLOR
         self.planet.name         = 'Moon'
@@ -660,6 +665,7 @@ class OrbitGame(arcade.Window):
                 txt = '{:.1f}km'.format(1e-3*dist)
             arcade.draw_text(txt, xt, yt, GREEN,  HUD_FONT_SIZE, font_name=HUD_FONT)
                 
+        arcade.draw_text("Press T to pause and view the tutorial, ESC to exit!", 10, SCREEN_HEIGHT - 30, arcade.color.WHITE, 14)
         
         # draw information
         color = arcade.color.GRAY
@@ -673,28 +679,48 @@ class OrbitGame(arcade.Window):
         arcade.draw_text('alpha: {:.2f}deg'.format(math.degrees(self.control_craft.alpha)), 10, 130, color, size)
 
     def on_update(self, delta_time):
-        self.lander.autoPilot(delta_time * self.time_factor)
-        phys_time_1 = datetime.datetime.now()
-        N = max(1, int(delta_time * self.time_factor / self.sim_dt))
-        dt = self.time_factor * delta_time / N                
-        for i in range(N):
-            for body in self.body_list:
-                # for space crafts compute the total mass
-                if isinstance(body, Spacecraft):
-                    body.mass = body.dry_mass + body.fuel
-                    if body.docked_to is not None:
-                        body.docked_to.mass += body.mass
-            for body in self.body_list:
-                body.update_physics(dt)
-                body.update_metrics()
-        self.sprite_list.update(delta_time)
-        self.sim_time += delta_time * self.time_factor
-        phys_time_2 = datetime.datetime.now()
-        if (phys_time_2 - phys_time_1).total_seconds() > 0.9 * delta_time:
-            self.time_factor *= 0.1        
+        if self.paused:  
+            return  
+        if  self.game_running:       
+            self.lander.autoPilot(delta_time * self.time_factor)
+            phys_time_1 = datetime.datetime.now()
+            N = max(1, int(delta_time * self.time_factor / self.sim_dt))
+            dt = self.time_factor * delta_time / N                
+            for i in range(N):
+                for body in self.body_list:
+                    # for space crafts compute the total mass
+                    if isinstance(body, Spacecraft):
+                        body.mass = body.dry_mass + body.fuel
+                        if body.docked_to is not None:
+                            body.docked_to.mass += body.mass
+                for body in self.body_list:
+                    body.update_physics(dt)
+                    body.update_metrics()
+            self.sprite_list.update(delta_time)
+            self.sim_time += delta_time * self.time_factor
+            phys_time_2 = datetime.datetime.now()
+            if (phys_time_2 - phys_time_1).total_seconds() > 0.9 * delta_time:
+                self.time_factor *= 0.1     
+            if (self.lander.crashed == True or self.spacecraft.crashed == True):
+                self.game_running = False
+                self.game_over()
+                
+    def game_over(self):
+        print("Game Over!")
+        game_over_view = GameOver()
+        self.window.show_view(game_over_view)   
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.SPACE:
+        if key == arcade.key.T:
+            self.paused = True 
+            tutorial = TutorialView(self)  # Pass `self` to resume later
+            self.window.show_view(tutorial)
+        
+        elif key == arcade.key.ESCAPE:
+            self.game_running = False 
+            self.game_over()
+
+        elif key == arcade.key.SPACE:
             # find index of current reference body
             i = self.body_list.index(self.reference)
             self.reference.scale_factor = self.scale_factor
@@ -828,9 +854,140 @@ class OrbitGame(arcade.Window):
             L.dock()
 
 
+class TutorialView(arcade.View):
+    def __init__(self, game_view):
+        super().__init__()
+        self.game_view = game_view  
+
+    def on_draw(self):
+        self.clear()
+        
+        arcade.draw_text("Lander Challenge", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 80,
+                         arcade.color.YELLOW, font_size=30, anchor_x="center")
+        arcade.draw_text("enGits Lander Challenge", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 120,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+        tutorial_text = [
+            "Press ESC to return",
+            "Press ENTER to restart",
+            "",
+            "## Arrow Keys",
+            "- LEFT: Rotate left",
+            "- RIGHT: Rotate right",
+            "- UP: Increase thrust by 1%",
+            "- DOWN: Decrease thrust by 1%",
+            "- SHIFT + UP: Increase thrust by 10%",
+            "- SHIFT + DOWN: Decrease thrust by 10%",
+            "",
+            "## NUM-PAD",
+            "- 1: Switch control to main craft",
+            "- 2: Switch control to lander (if not docked)",
+            "- 0: Undock/dock",
+            "- ENTER: Switch to 1:1 zoom level (required for docking actions)",
+            "- *: Compute/update trajectory (if Moon is reference object)",
+            "- +: Zoom in",
+            "- -: Zoom out",
+            "- SHIFT +: Increase simulation speed",
+            "- SHIFT -: Decrease simulation speed",
+            "",
+            "## Other Keys",
+            "- SPACE: Cycle through reference objects",
+            "- ,: Decrease thrust by 0.01%",
+            "- <: Decrease thrust by 0.1%",
+            "- .: Increase thrust by 0.01%",
+            "- >: Increase thrust by 0.1%",
+            "- A: Autopilot for landing below 5 km",
+
+            "- SHIFT + F5: Put lander 10km above lunar surface (for debugging)",
+            "",
+            "Press ESC to return"
+        ]
+
+        y_position = SCREEN_HEIGHT - 160
+        for line in tutorial_text:
+            arcade.draw_text(line, SCREEN_WIDTH / 2, y_position,
+                             arcade.color.WHITE if "##" not in line else arcade.color.YELLOW,
+                             font_size=16 if "##" not in line else 18,
+                             anchor_x="center")
+            y_position -= 30 
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ESCAPE:
+            self.game_view.paused = False  
+            self.window.show_view(self.game_view)  
+
+        elif key == arcade.key.ENTER:
+            new_game = OrbitGame() 
+            self.window.show_view(new_game)
+
+
+class MainMenu(arcade.View):
+    def on_show(self):
+        arcade.set_background_color(arcade.color.DARK_BLUE)
+
+    def on_draw(self):
+        self.clear()
+        arcade.draw_text("Orbit Game", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
+                         arcade.color.WHITE, font_size=40, anchor_x="center")
+        arcade.draw_text("Press ENTER to Start", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ENTER:
+            self.start_game()
+        elif key == arcade.key.T: 
+            tutorial = TutorialView(self)
+            self.window.show_view(tutorial)
+        elif key == arcade.key.ESCAPE:
+            arcade.exit()
+
+    def start_game(self):
+        print("Game Starts!")
+        game = OrbitGame()  
+        self.window.show_view(game)  
+
+
+class GameOver(arcade.View):
+    def on_show(self):
+        arcade.set_background_color(arcade.color.DARK_RED)
+
+    def on_draw(self):
+        self.clear()
+        arcade.draw_text("Game Over", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
+                         arcade.color.WHITE, font_size=40, anchor_x="center")
+        arcade.draw_text("Press ENTER to Play Again", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+                         arcade.color.WHITE, font_size=20, anchor_x="center")
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ENTER:
+            self.restart_game() 
+        elif key == arcade.key.T: 
+            tutorial = TutorialView(self)
+            self.window.show_view(tutorial)
+        elif key == arcade.key.ESCAPE:
+            arcade.exit() 
+
+    def restart_game(self):
+        print("Game Restarts!")
+        self.window.clear()
+        game = OrbitGame() 
+        self.window.show_view(game) 
+
+
 def main():
-    game = OrbitGame()
-    arcade.run()
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    menu = MainMenu()  
+    window.show_view(menu) 
+    arcade.run() 
+
 
 if __name__ == "__main__":
     main()
