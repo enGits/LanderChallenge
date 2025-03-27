@@ -726,7 +726,6 @@ class OrbitGame(arcade.View):
             )
     
     def draw_fuel_bar(self, x, y):
-        """Draw a fuel bar next to the fuel percentage"""
         fuel_percentage = 100 * self.control_craft.fuel / self.control_craft.max_fuel
         bar_width = 150
         bar_height = 8
@@ -997,12 +996,18 @@ class MainMenu(arcade.View):
 
     def on_draw(self):
         self.clear()
+        texture = arcade.load_texture("logo.png")
+        scale = 1.5
+        arcade.draw_texture_rect(
+            texture,
+            arcade.XYWH(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 250, texture.width, texture.height).scale(scale)
+        )
         arcade.draw_text("Orbit Game", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
-                         arcade.color.WHITE, font_size=40, anchor_x="center")
+                         arcade.color.BLEU_DE_FRANCE, font_size=40, anchor_x="center")
         arcade.draw_text("Press ENTER to Start", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
-                         arcade.color.WHITE, font_size=20, anchor_x="center")
+                         arcade.color.YELLOW, font_size=20, anchor_x="center")
         arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
@@ -1028,11 +1033,11 @@ class GameOver(arcade.View):
     def on_draw(self):
         self.clear()
         arcade.draw_text("Game Over", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
-                         arcade.color.WHITE, font_size=40, anchor_x="center")
+                         arcade.color.RED, font_size=40, anchor_x="center")
         arcade.draw_text("Press ENTER to Play Again", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
-                         arcade.color.WHITE, font_size=20, anchor_x="center")
+                         arcade.color.YELLOW, font_size=20, anchor_x="center")
         arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
