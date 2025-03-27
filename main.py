@@ -376,6 +376,7 @@ class Spacecraft(Body):
                 arcade.draw_text('km/h {:.2f}'.format(vel*3.6), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('alt  {:.2f}'.format(alt/1000), x, y, col, fs, font_name=fn)
                 arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
+                arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()*3.6), x, y - 2*fs - 4, col, fs, font_name=fn)  
             else:
                 if self == self.game.lander:
                     col = RED
@@ -384,6 +385,7 @@ class Spacecraft(Body):
                 arcade.draw_text('m/s {:.2f}'.format(vel), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('m   {:.2f}'.format(alt), x, y, col, fs, font_name=fn)
                 arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
+                arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()), x, y - 2*fs - 4, col, fs, font_name=fn)
             #
             if self.auto_pilot:
                 arcade.draw_text('tgt {:.2f}'.format(self.tgt_vvel), x, y - 3*fs - 6, col, fs, font_name=fn)
@@ -700,28 +702,28 @@ class OrbitGame(arcade.View):
         y_offset -= 12
         self.draw_fuel_bar(x_offset, y_offset)
         y_offset -= 20
-        arcade.draw_text(f"Control: {self.control_craft.name}", x_offset, y_offset, color, size)
-        y_offset -= 20
         arcade.draw_text(f"Reference: {self.reference.name}", x_offset, y_offset, color, size)
         y_offset -= 20
-        self.draw_reference_icon(x_offset + 20 + 10, y_offset)
+        arcade.draw_text(f"Control: {self.control_craft.name}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        self.draw_control_craft_icon(x_offset + 20 + 10, y_offset)
         y_offset -= 40
         # arcade.draw_text(f"Alpha: {math.degrees(self.control_craft.alpha):.2f}°", x_offset, y_offset, color, size)
     
         if self.show_crashed:
             arcade.draw_text("Crashed!", 350, 300, arcade.color.RED, 40)
 
-    def draw_reference_icon(self, x, y):
-        if self.reference.name == "Moon":
+    def draw_control_craft_icon(self, x, y):
+        if self.control_craft.name == "Moon":
             arcade.draw_circle_filled(x, y, 20 // 2, arcade.color.LIGHT_GRAY)  # A simple circle for the Moon
-        elif self.reference.name == "Main Craft":
+        elif self.control_craft.name == "Main Craft":
             texture = arcade.load_texture("craft_01.png")
             scale = .06
             arcade.draw_texture_rect(
                 texture,
                 arcade.XYWH(x, y, texture.width, texture.height).scale(scale)
             )
-        elif self.reference.name == "Lander":
+        elif self.control_craft.name == "Lander":
             texture = arcade.load_texture("lander_01.png")
             scale = .05
             arcade.draw_texture_rect(
