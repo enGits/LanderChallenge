@@ -12,7 +12,7 @@ NUM_MOUNTAINS  = 1000
 ALT0           = 2.0
 GAIN           = 5.0
 ERROR_TIME     = 5.0
-ZOOM_LENGTH    = 0.4
+ZOOM_LENGTH    = 0.25
 FEAT_THRESHOLD = 1000
 
 HUD_FONT       = 'Courier New'
@@ -318,19 +318,30 @@ class Spacecraft(Body):
 
     def update_metrics(self):
         if self.game.reference != self.game.planet:
-            L_ref = 0.0
+            d = 0.0
             if self.game.orbit_zoom:
                 x1 = self.game.lander.x
                 y1 = self.game.lander.y
                 x2 = self.game.spacecraft.x
                 y2 = self.game.spacecraft.y
-                L_ref = max(1.0, math.sqrt((x1 - x2)**2 + (y1 - y2)**2))
+                d  = max(1.0, math.sqrt((x1 - x2)**2 + (y1 - y2)**2))
+                if d < 20.0:
+                    self.scale_factor = self.game.real_zoom_factor
+                else:
+                    old_scale = self.scale_factor
+                    new_scale = min(ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / d, self.game.real_zoom_factor)
+                    if new_scale < 0.5*old_scale:
+                        new_scale = 0.5*old_scale
+                    elif new_scale > 2.0*old_scale:
+                        new_scale = 2.0*old_scale
+                    else:
+                        new_scale = old_scale
+                    self.scale_factor = new_scale
             else:
-                r     = math.sqrt(self.x**2 + self.y**2)
-                R     = self.game.planet.radius
-                L_ref = r - R
-            new_scale = min(self.zoom_factor*ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / L_ref, self.game.real_zoom_factor)
-            self.scale_factor = new_scale
+                r   = math.sqrt(self.x**2 + self.y**2)
+                R   = self.game.planet.radius
+                alt = r - R
+                self.scale_factor =  min(self.zoom_factor*ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / alt, self.game.real_zoom_factor)
         super().update_metrics()
         if self.docked_to is not None:
             a  = math.radians(self.docked_to._a)
@@ -709,11 +720,12 @@ class OrbitGame(arcade.Window):
             if modifiers & arcade.key.MOD_SHIFT:
                 self.time_factor *= 10
             else:
-                #self.dbg = True
                 if self.reference == self.planet:
                     self.reference.scale_factor *= 1.1
+                elif self.orbit_zoom:
+                    self.reference.scale_factor *= 1.1
                 else:
-                    self.reference.zoom_factor *= 1.1
+                    self.reference.zoom_factor  *= 1.1
                 
         elif key == arcade.key.NUM_SUBTRACT:
             if modifiers & arcade.key.MOD_SHIFT:
@@ -722,8 +734,10 @@ class OrbitGame(arcade.Window):
             else:
                 if self.reference == self.planet:
                     self.reference.scale_factor /= 1.1
+                elif self.orbit_zoom:
+                    self.reference.scale_factor /= 1.1
                 else:
-                    self.reference.zoom_factor /= 1.1
+                    self.reference.zoom_factor  /= 1.1
                 
         elif key == arcade.key.UP:
             if self.control_craft.auto_pilot:
