@@ -10,11 +10,20 @@ SCREEN_HEIGHT  = 1200
 SCREEN_TITLE   = 'enGits Lunar Lander Challenge'
 NUM_MOUNTAINS  = 1000
 ALT0           = 2.0
-MOON_COLOR     = (100,100,100)
 GAIN           = 5.0
 ERROR_TIME     = 5.0
 ZOOM_LENGTH    = 0.4
 FEAT_THRESHOLD = 1000
+
+HUD_FONT       = 'Courier New'
+HUD_FONT_SIZE  = 10
+
+MOON_COLOR = (100,100,100)
+GREEN      = (0, 200, 0)
+RED        = arcade.color.LIGHT_RED_OCHRE
+ORANGE     = arcade.color.ORANGE
+
+
 
 class SurfaceFeature():
     
@@ -273,6 +282,8 @@ class Body():
         self.alpha += omega * dt
         
     def draw(self):
+        if self.game.dbg:
+            pass
         if self.sprite is None:
             self.draw_high_res_circle(self._x, self._y, self.game.scaleFactor()*self.radius, self.color, num_segments=150)
             for feature in self.feature_list:
@@ -299,17 +310,27 @@ class Spacecraft(Body):
         self.dock_dist    = 0.0
         self.target       = None
         self.landed       = False
+        self.zoom_factor  = 1.0
         #
         self.tgt_vvel     = 0.0
         self.auto_pilot   = False
         self.errI         = 0.0
 
     def update_metrics(self):
-        r   = math.sqrt(self.x**2 + self.y**2)
-        R   = self.game.planet.radius
-        alt = r - R
-        if alt < 10e3 and self.game.reference == self:
-            self.game.scale_factor = min(ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / alt, self.game.real_zoom_factor)
+        if self.game.reference != self.game.planet:
+            L_ref = 0.0
+            if self.game.orbit_zoom:
+                x1 = self.game.lander.x
+                y1 = self.game.lander.y
+                x2 = self.game.spacecraft.x
+                y2 = self.game.spacecraft.y
+                L_ref = max(1.0, math.sqrt((x1 - x2)**2 + (y1 - y2)**2))
+            else:
+                r     = math.sqrt(self.x**2 + self.y**2)
+                R     = self.game.planet.radius
+                L_ref = r - R
+            new_scale = min(self.zoom_factor*ZOOM_LENGTH*min(SCREEN_WIDTH, SCREEN_HEIGHT) / L_ref, self.game.real_zoom_factor)
+            self.scale_factor = new_scale
         super().update_metrics()
         if self.docked_to is not None:
             a  = math.radians(self.docked_to._a)
@@ -323,31 +344,32 @@ class Spacecraft(Body):
         self.sprite.angle = self._a
 
     def draw(self):
-        grn = (0, 200, 0)
+        if self.game.dbg:
+            pass
         #
         # draw HUD if required
         #
         if self == self.game.control_craft: # and self == self.game.reference:
-            fs  = 10
+            fs  = HUD_FONT_SIZE
             vel = math.sqrt(self.u**2 + self.v**2)
             alt = math.sqrt(self.x**2 + self.y**2) - self.game.planet.radius - ALT0
             x   = self._x  + 20
             y   = self._y
-            fn  = 'Courier New'
-            col = grn
+            fn  = HUD_FONT
+            col = GREEN
             #
             if alt > 5.0e3:
                 if self == self.game.lander:
-                    col = arcade.color.ORANGE
+                    col = ORANGE
                 arcade.draw_text('km/h {:.2f}'.format(vel*3.6), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('alt  {:.2f}'.format(alt/1000), x, y, col, fs, font_name=fn)
                 arcade.draw_text('fuel {:.1f}%'.format(100*self.fuel/self.max_fuel), x, y - fs - 2, col, fs, font_name=fn)
                 arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
             else:
                 if self == self.game.lander:
-                    col = arcade.color.LIGHT_RED_OCHRE
+                    col = RED
                 if vel < 5.0:
-                    col = grn
+                    col = GREEN
                 arcade.draw_text('m/s {:.2f}'.format(vel), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('m   {:.2f}'.format(alt), x, y, col, fs, font_name=fn)
                 arcade.draw_text('f.  {:.1f}%'.format(100*self.fuel/self.max_fuel), x, y - fs - 2, col, fs, font_name=fn)
@@ -375,21 +397,21 @@ class Spacecraft(Body):
         #
         # draw orbital trajectory
         #
-        if self.trajectory is not None and not self.game.real_zoom and self.game.reference == self.game.planet:
+        if self.trajectory is not None and self.game.reference == self.game.planet:
             pts = []
             for x, y in self.trajectory:
                 _x = (x - self.game.reference.x) * self.game.scaleFactor() + SCREEN_WIDTH/2
                 _y = (y - self.game.reference.y) * self.game.scaleFactor() + SCREEN_HEIGHT/2
                 pts.append((_x, _y))
-            arcade.draw_line_strip(pts, grn, 1)
+            arcade.draw_line_strip(pts, GREEN, 1)
             n = int(len(pts)/2)
-            arcade.draw_line(pts[0][0], pts[0][1], pts[n][0], pts[n][1], grn, 1)            
+            arcade.draw_line(pts[0][0], pts[0][1], pts[n][0], pts[n][1], GREEN, 1)            
             km1 = (pts[0][0] - self.game.planet._x)**2 + (pts[0][1] - self.game.planet._y)**2
             km1 = 1e-3 * (math.sqrt(km1) / self.game.scaleFactor() - self.game.planet.radius)
             km2 = (pts[n][0] - self.game.planet._x)**2 + (pts[n][1] - self.game.planet._y)**2
             km2 = 1e-3 * (math.sqrt(km2) / self.game.scaleFactor() - self.game.planet.radius)
-            arcade.draw_text('{:.1f}km'.format(km1), pts[0][0], pts[0][1], grn, 10)
-            arcade.draw_text('{:.1f}km'.format(km2), pts[n][0], pts[n][1], grn, 10)
+            arcade.draw_text('{:.1f}km'.format(km1), pts[0][0], pts[0][1], GREEN, 10)
+            arcade.draw_text('{:.1f}km'.format(km2), pts[n][0], pts[n][1], GREEN, 10)
     
     def update_physics(self, dt=0):
         Fx = 0.0
@@ -534,7 +556,7 @@ class OrbitGame(arcade.Window):
         self.time_factor      = 1.0
         self.sim_dt           = 0.1
         self.sim_time         = 0.0
-        self.real_zoom        = False
+        self.orbit_zoom       = False
         self.real_zoom_factor = 5.74
 
         arcade.set_background_color(arcade.color.BLACK)
@@ -551,6 +573,7 @@ class OrbitGame(arcade.Window):
         self.planet.scale_factor = self.scale_factor
         self.planet.color        = MOON_COLOR
         self.planet.name         = 'Moon'
+        self.dbg                 = False
         
         # Create random mountains on the Lunar surface
         # height H varies between 100m and 6000m
@@ -600,17 +623,17 @@ class OrbitGame(arcade.Window):
         arcade.schedule(self.on_update, 1 / 30)
         
     def scaleFactor(self):
-        if self.real_zoom:
-            return self.real_zoom_factor
         return self.scale_factor
         
     def on_draw(self):
         self.clear()
         
+        self.scale_factor = self.reference.scale_factor
+
         # update all metrics
         for body in self.body_list:
             body.update_metrics()
-
+            
         # draw all non sprite bodies
         for body in self.body_list:
             if body.trajectory is None:
@@ -621,6 +644,22 @@ class OrbitGame(arcade.Window):
 
         # Draw spacecraft (i.e. sprites)
         self.sprite_list.draw()
+        
+        # draw HUD distance line between lander and spacecraft
+        if self.reference != self.planet and self.orbit_zoom:
+            x1 = self.lander._x
+            y1 = self.lander._y
+            x2 = self.spacecraft._x
+            y2 = self.spacecraft._y
+            xt = 0.5*(x1 + x2)
+            yt = 0.5*(y1 + y2)
+            arcade.draw_line(x1, y1, x2, y2, GREEN, 1)
+            dist = math.sqrt((self.lander.x - self.spacecraft.x)**2 + (self.lander.y - self.spacecraft.y)**2)
+            txt = '{:.1f}m'.format(dist)
+            if dist > 1e3:
+                txt = '{:.1f}km'.format(1e-3*dist)
+            arcade.draw_text(txt, xt, yt, GREEN,  HUD_FONT_SIZE, font_name=HUD_FONT)
+                
         
         # draw information
         color = arcade.color.GRAY
@@ -670,14 +709,21 @@ class OrbitGame(arcade.Window):
             if modifiers & arcade.key.MOD_SHIFT:
                 self.time_factor *= 10
             else:
-                self.scale_factor *= 1.1
+                #self.dbg = True
+                if self.reference == self.planet:
+                    self.reference.scale_factor *= 1.1
+                else:
+                    self.reference.zoom_factor *= 1.1
                 
         elif key == arcade.key.NUM_SUBTRACT:
             if modifiers & arcade.key.MOD_SHIFT:
                 self.time_factor /= 10
                 self.time_factor = max(0.001, self.time_factor)
             else:
-                self.scale_factor /= 1.1
+                if self.reference == self.planet:
+                    self.reference.scale_factor /= 1.1
+                else:
+                    self.reference.zoom_factor /= 1.1
                 
         elif key == arcade.key.UP:
             if self.control_craft.auto_pilot:
@@ -728,10 +774,10 @@ class OrbitGame(arcade.Window):
                 self.control_craft.trajectory = None
                 
         elif key == arcade.key.NUM_ENTER:
-            self.real_zoom = not self.real_zoom
+            self.orbit_zoom = not self.orbit_zoom
             
         elif key == arcade.key.NUM_0:
-            if self.real_zoom:
+            if self.orbit_zoom:
                 if self.lander.docked_to is None:
                     self.lander.dock()
                 else:
