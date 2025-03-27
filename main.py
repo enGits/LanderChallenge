@@ -375,8 +375,7 @@ class Spacecraft(Body):
                     col = ORANGE
                 arcade.draw_text('km/h {:.2f}'.format(vel*3.6), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('alt  {:.2f}'.format(alt/1000), x, y, col, fs, font_name=fn)
-                arcade.draw_text('fuel {:.1f}%'.format(100*self.fuel/self.max_fuel), x, y - fs - 2, col, fs, font_name=fn)
-                arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
+                arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
             else:
                 if self == self.game.lander:
                     col = RED
@@ -384,8 +383,7 @@ class Spacecraft(Body):
                     col = GREEN
                 arcade.draw_text('m/s {:.2f}'.format(vel), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('m   {:.2f}'.format(alt), x, y, col, fs, font_name=fn)
-                arcade.draw_text('f.  {:.1f}%'.format(100*self.fuel/self.max_fuel), x, y - fs - 2, col, fs, font_name=fn)
-                arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - 2*fs - 4, col, fs, font_name=fn)
+                arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
             #
             if self.auto_pilot:
                 arcade.draw_text('tgt {:.2f}'.format(self.tgt_vvel), x, y - 3*fs - 6, col, fs, font_name=fn)
@@ -581,7 +579,7 @@ class OrbitGame(arcade.View):
         self.game_running = True 
         self.paused = False  
         self.game_over_view = None 
-        self.show_crushed = False 
+        self.show_crashed = False 
 
         # Planet parameters
         self.planet = Body(self)        
@@ -685,16 +683,58 @@ class OrbitGame(arcade.View):
         # draw information
         color = arcade.color.GRAY
         size  = 12
-        arcade.draw_text(f"Reference: {self.reference.name}", 10, 10, color, size)
-        arcade.draw_text("Scale: {:.2e}".format(self.scaleFactor()), 10, 30, color, size)
-        arcade.draw_text(f"Time factor: {self.time_factor:.2f}", 10, 50, color, size)
-        arcade.draw_text(f"Time: {self.sim_time:.2f}", 10, 70, color, size)
-        arcade.draw_text(f"Fuel: {100*self.control_craft.fuel/self.control_craft.max_fuel:.1f} %", 10, 90, color, size)
-        arcade.draw_text(f"Control: {self.control_craft.name}", 10, 110, color, size)
-        arcade.draw_text('alpha: {:.2f}deg'.format(math.degrees(self.control_craft.alpha)), 10, 130, color, size)
+        y_offset = SCREEN_HEIGHT - 20  # Starting position from the top of the screen
+        x_offset = SCREEN_WIDTH - 220
 
-        if self.show_crushed:
-            arcade.draw_text("Crushed!", 350, 300, arcade.color.RED, 40)
+        arcade.draw_text(f"Scale: {self.scaleFactor():.2e}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        arcade.draw_text(f"Time Factor: {self.time_factor:.2f}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        arcade.draw_text(f"Time: {self.sim_time:.2f}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        arcade.draw_text("Fuel", x_offset, y_offset, color, size)
+        y_offset -= 12
+        self.draw_fuel_bar(x_offset, y_offset)
+        y_offset -= 20
+        arcade.draw_text(f"Control: {self.control_craft.name}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        arcade.draw_text(f"Reference: {self.reference.name}", x_offset, y_offset, color, size)
+        y_offset -= 20
+        self.draw_reference_icon(x_offset + 20 + 10, y_offset)
+        y_offset -= 40
+        # arcade.draw_text(f"Alpha: {math.degrees(self.control_craft.alpha):.2f}°", x_offset, y_offset, color, size)
+    
+        if self.show_crashed:
+            arcade.draw_text("Crashed!", 350, 300, arcade.color.RED, 40)
+
+    def draw_reference_icon(self, x, y):
+        if self.reference.name == "Moon":
+            arcade.draw_circle_filled(x, y, 20 // 2, arcade.color.LIGHT_GRAY)  # A simple circle for the Moon
+        elif self.reference.name == "Main Craft":
+            texture = arcade.load_texture("craft_01.png")
+            scale = .06
+            arcade.draw_texture_rect(
+                texture,
+                arcade.XYWH(x, y, texture.width, texture.height).scale(scale)
+            )
+        elif self.reference.name == "Lander":
+            texture = arcade.load_texture("lander_01.png")
+            scale = .05
+            arcade.draw_texture_rect(
+                texture,
+                arcade.XYWH(x, y, texture.width, texture.height).scale(scale)
+            )
+    
+    def draw_fuel_bar(self, x, y):
+        """Draw a fuel bar next to the fuel percentage"""
+        fuel_percentage = 100 * self.control_craft.fuel / self.control_craft.max_fuel
+        bar_width = 150
+        bar_height = 8
+        arcade.draw_lrbt_rectangle_filled(x, x + bar_width, y, y + bar_height, arcade.color.DARK_GRAY)
+        fuel_color = arcade.color.GREEN if fuel_percentage > 20 else arcade.color.RED
+        arcade.draw_lrbt_rectangle_filled(x, x + (fuel_percentage / 100) * bar_width, y, y + bar_height, fuel_color)
+        arcade.draw_text(f"{fuel_percentage:.1f}%", x + bar_width + 10, y - bar_height // 2, arcade.color.WHITE, HUD_FONT_SIZE)
+
 
     def on_update(self, delta_time):
         if self.paused:  
@@ -721,15 +761,19 @@ class OrbitGame(arcade.View):
                 self.time_factor *= 0.1     
             if (self.lander.crashed == True or self.spacecraft.crashed == True):
                 self.game_running = False
+                self.show_crashed = True
                 self.game_over()
                 
     def game_over(self):
         print("Game Over!")
-        self.show_crushed = True
-        arcade.schedule_once(self.switch_to_game_over_view, 4)
+        if self.show_crashed:
+            arcade.schedule_once(self.switch_to_game_over_view, 4)
+        else:
+            game_over_view = GameOver() 
+            self.window.show_view(game_over_view) 
 
     def switch_to_game_over_view(self, delta_time):
-        self.show_crushed = False 
+        self.show_crashed = False 
         game_over_view = GameOver() 
         self.window.show_view(game_over_view) 
 
