@@ -18,10 +18,11 @@ FEAT_THRESHOLD = 1000
 HUD_FONT       = 'Courier New'
 HUD_FONT_SIZE  = 10
 
-MOON_COLOR = (100,100,100)
-GREEN      = (0, 200, 0)
-RED        = arcade.color.LIGHT_RED_OCHRE
-ORANGE     = arcade.color.ORANGE
+MOON_COLOR     = (100,100,100)
+MOUNTAIN_COLOR = (80,80,80)
+GREEN          = (0, 200, 0)
+RED            = arcade.color.LIGHT_RED_OCHRE
+ORANGE         = arcade.color.ORANGE
 
 
 
@@ -69,7 +70,7 @@ class Mountain(SurfaceFeature):
     
     def __init__(self, planet, height, width, middle_width=None, theta=0):  
         super().__init__(planet, theta)
-        self.color  = MOON_COLOR
+        self.color  = MOUNTAIN_COLOR
         if middle_width is None:
             middle_width = width/2
         self.points.append((       -width/2, -100))
@@ -286,8 +287,9 @@ class Body():
             pass
         if self.sprite is None:
             self.draw_high_res_circle(self._x, self._y, self.game.scaleFactor()*self.radius, self.color, num_segments=150)
-            for feature in self.feature_list:
-                feature.draw()
+            if self.game.reference != self.game.planet:
+                for feature in self.feature_list:
+                    feature.draw()
         else:
             pass
 
@@ -326,7 +328,7 @@ class Spacecraft(Body):
                 x2 = self.game.spacecraft.x
                 y2 = self.game.spacecraft.y
                 d  = max(1.0, math.sqrt((x1 - x2)**2 + (y1 - y2)**2))
-                if d < 20.0:
+                if d < 20.0 or self.game.lander.docked_to is not None:
                     self.scale_factor = self.game.real_zoom_factor
                 else:
                     old_scale = self.scale_factor
@@ -376,7 +378,7 @@ class Spacecraft(Body):
                 arcade.draw_text('km/h {:.2f}'.format(vel*3.6), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('alt  {:.2f}'.format(alt/1000), x, y, col, fs, font_name=fn)
                 arcade.draw_text('th.  {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
-                arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()*3.6), x, y - 2*fs - 4, col, fs, font_name=fn)  
+                #arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()*3.6), x, y - 2*fs - 4, col, fs, font_name=fn)  
             else:
                 if self == self.game.lander:
                     col = RED
@@ -385,21 +387,33 @@ class Spacecraft(Body):
                 arcade.draw_text('m/s {:.2f}'.format(vel), x, y + fs + 2, col, fs, font_name=fn)
                 arcade.draw_text('m   {:.2f}'.format(alt), x, y, col, fs, font_name=fn)
                 arcade.draw_text('th. {:.2f}%'.format(self.thrust_level), x, y - fs - 2, col, fs, font_name=fn)
-                arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()), x, y - 2*fs - 4, col, fs, font_name=fn)
+                #arcade.draw_text('vv.  {:.2f}'.format(self.verticalVelocity()), x, y - 2*fs - 4, col, fs, font_name=fn)
             #
             if self.auto_pilot:
                 arcade.draw_text('tgt {:.2f}'.format(self.tgt_vvel), x, y - 3*fs - 6, col, fs, font_name=fn)
-            u = self.u
-            v = self.v
-            u_crit = 1.0
+            u1 = self.u
+            v1 = self.v
+            u2 = u1
+            v2 = v1
+            u1_crit = 1.0
+            u2_crit = u1_crit
             if self.target is not None:
-                u -= self.target.u
-                v -= self.target.v                
-                u_crit = 0.01
-            u_abs = math.sqrt(u**2 + v**2)
-            if u_abs > u_crit:
-                dx = u / u_abs
-                dy = v / u_abs
+                u2 -= self.target.u
+                v2 -= self.target.v                
+                u2_crit = 0.01
+            u1_abs = math.sqrt(u1**2 + v1**2)
+            u2_abs = math.sqrt(u2**2 + v2**2)
+            if u1_abs > u1_crit:
+                dx = u1 / u1_abs
+                dy = v1 / u1_abs
+                a  = Body.safe_angle(dx, dy)
+                a += self.game.reference.alpha
+                dx = 100*math.cos(a)
+                dy = 100*math.sin(a)
+                arcade.draw_line(self._x, self._y, self._x + dx, self._y + dy, col, 2)
+            if u2_abs > u2_crit:
+                dx = u2 / u2_abs
+                dy = v2 / u2_abs
                 a  = Body.safe_angle(dx, dy)
                 a += self.game.reference.alpha
                 dx = 100*math.cos(a)
@@ -658,15 +672,28 @@ class OrbitGame(arcade.View):
         L.alpha = 0
         L.omega = 0
         L.acc_omega = 0
-        L.acc_x = 0
-        L.acc_y = 0
-        L.x = 0
-        L.y = -(self.planet.radius + 10e3)
+        L.acc_x     = 0
+        L.acc_y     = 0
+        L.x         = 0
+        L.y         = -(self.planet.radius + 10e3)
         L.docked_to = None
+        L.fuel     *= 0.5
         L.dock()
 
     def set_level3(self):
-        print("Level 3 init")
+        L = self.lander
+        self.control_craft = L
+        self.reference = L
+        L.y         = self.planet.radius + 100e3
+        L.fuel     *= 0.1
+        L.alpha     = 0
+        L.omega     = 0
+        L.acc_omega = 0
+        L.acc_x     = 0
+        L.acc_y     = 0
+        L.x         = 0
+        L.docked_to = None
+        L.u         = math.sqrt(Body.G * self.planet.mass / L.y)
 
     def scaleFactor(self):
         return self.scale_factor
@@ -783,6 +810,7 @@ class OrbitGame(arcade.View):
                             body.docked_to.mass += body.mass
                 for body in self.body_list:
                     body.update_physics(dt)
+                for body in self.body_list:
                     body.update_metrics()
             self.sprite_list.update(delta_time)
             self.sim_time += delta_time * self.time_factor
@@ -932,7 +960,7 @@ class OrbitGame(arcade.View):
                 self.control_craft.auto_pilot = not self.control_craft.auto_pilot
                 if self.control_craft.auto_pilot:
                     self.control_craft.resetAutoPilot()
-                    self.control_craft.tgt_vvel = min(20.0, max(-20.0, round(self.control_craft.v)))
+                    self.control_craft.tgt_vvel = min(20.0, max(-20.0, round(self.control_craft.verticalVelocity())))
                     
         #
         # debug final approach
@@ -983,7 +1011,7 @@ class TutorialView(arcade.View):
             "- 1: Switch control to main craft",
             "- 2: Switch control to lander (if not docked)",
             "- 0: Undock/dock",
-            "- ENTER: Switch to 1:1 zoom level (required for docking actions)",
+            "- ENTER: Switch to docking zoom behaviour (required for docking actions)",
             "- *: Compute/update trajectory (if Moon is reference object)",
             "- +: Zoom in",
             "- -: Zoom out",
@@ -1072,11 +1100,11 @@ class LevelMenu(arcade.View):
         for star in self.stars:
             arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE) 
 
-        arcade.draw_text("Level 1", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60,
+        arcade.draw_text("1. Full Mission", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
-        arcade.draw_text("Level 2", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
+        arcade.draw_text("2. Final Approach", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
-        arcade.draw_text("Level 3", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
+        arcade.draw_text("3. Docking", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.YELLOW, font_size=20, anchor_x="center")
