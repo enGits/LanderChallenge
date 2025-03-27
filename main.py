@@ -437,6 +437,7 @@ class Spacecraft(Body):
                 u_abs = math.sqrt(self.u**2 + self.v**2)
                 if u_abs > 5.0:
                     # CRASH if landing too fast
+                    print("Crashed! Landing too fast! " + str(u_abs))
                     self.crashed = True
                 self.u = 0
                 self.v = 0
@@ -453,6 +454,7 @@ class Spacecraft(Body):
                 alpha = math.degrees(self.alpha)
                 if abs(alpha - beta) > 20:
                     # CRASH due to bad landing angle
+                    print("Crashed! Bad landing angle! " + str(abs(alpha - beta)))
                     self.crashed = True
                 self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
                 self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
@@ -567,6 +569,8 @@ class OrbitGame(arcade.View):
 
         self.game_running = True 
         self.paused = False  
+        self.game_over_view = None 
+        self.show_crushed = False 
 
         # Planet parameters
         self.planet = Body(self)        
@@ -678,6 +682,9 @@ class OrbitGame(arcade.View):
         arcade.draw_text(f"Control: {self.control_craft.name}", 10, 110, color, size)
         arcade.draw_text('alpha: {:.2f}deg'.format(math.degrees(self.control_craft.alpha)), 10, 130, color, size)
 
+        if self.show_crushed:
+            arcade.draw_text("Crushed!", 350, 300, arcade.color.RED, 40)
+
     def on_update(self, delta_time):
         if self.paused:  
             return  
@@ -707,8 +714,13 @@ class OrbitGame(arcade.View):
                 
     def game_over(self):
         print("Game Over!")
-        game_over_view = GameOver()
-        self.window.show_view(game_over_view)   
+        self.show_crushed = True
+        arcade.schedule_once(self.switch_to_game_over_view, 4)
+
+    def switch_to_game_over_view(self, delta_time):
+        self.show_crushed = False 
+        game_over_view = GameOver() 
+        self.window.show_view(game_over_view) 
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.T:
