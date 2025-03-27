@@ -580,6 +580,9 @@ class OrbitGame(arcade.View):
 
         # Draw spacecraft (i.e. sprites)
         self.sprite_list.draw()
+
+        # Draw text at the top-left corner
+        arcade.draw_text("Press T to pause and view the tutorial, ESC to exit!", 10, SCREEN_HEIGHT - 30, arcade.color.WHITE, 14)
         
         # draw information
         color = arcade.color.GRAY
@@ -791,8 +794,9 @@ class TutorialView(arcade.View):
             "- .: Increase thrust by 0.01%",
             "- >: Increase thrust by 0.1%",
             "- SHIFT + F5: Put lander 10km above lunar surface (for debugging)",
+            "- A: Autopilot for landing below 5 km",
             "",
-            "Press ESC to return to Menu"
+            "Press ESC to return"
         ]
 
         y_position = SCREEN_HEIGHT - 160
