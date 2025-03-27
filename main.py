@@ -3,7 +3,7 @@ import math
 import sys
 import datetime
 import numpy as np
-
+import random
 
 SCREEN_WIDTH   = 1200
 SCREEN_HEIGHT  = 1200
@@ -463,7 +463,7 @@ class Spacecraft(Body):
                 alpha = math.degrees(self.alpha)
                 if abs((alpha - beta + 180) % 360 - 180) > 20:
                     # CRASH due to bad landing angle
-                    print("Crashed! Bad landing angle! " + str((alpha - beta) % 360))
+                    print("Crashed! Bad landing angle! " + str(abs((alpha - beta + 180) % 360 - 180)))
                     self.crashed = True
                 self.x = self.game.planet.x + dx*(self.game.planet.radius + ALT0)
                 self.y = self.game.planet.y + dy*(self.game.planet.radius + ALT0)
@@ -573,6 +573,7 @@ class OrbitGame(arcade.View):
         self.real_zoom_factor = 5.74
 
         arcade.set_background_color(arcade.color.BLACK)
+        self.stars = [(random.randint(0, SCREEN_HEIGHT), random.randint(0, SCREEN_WIDTH)) for _ in range(100)]  # 100 stars
         self.body_list = []
         self.sprite_list = arcade.SpriteList()
 
@@ -647,6 +648,9 @@ class OrbitGame(arcade.View):
         self.clear()
         
         self.scale_factor = self.reference.scale_factor
+
+        for star in self.stars:
+            arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE)  # Small white dots
 
         # update all metrics
         for body in self.body_list:
@@ -991,13 +995,17 @@ class TutorialView(arcade.View):
 
 
 class MainMenu(arcade.View):
-    def on_show(self):
-        arcade.set_background_color(arcade.color.DARK_BLUE)
+    def __init__(self):
+        super().__init__()
+        arcade.set_background_color(arcade.color.BLACK)
+        self.stars = [(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)) for _ in range(100)]  
 
     def on_draw(self):
         self.clear()
+        for star in self.stars:
+            arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE) 
         texture = arcade.load_texture("logo.png")
-        scale = 1.5
+        scale = .5
         arcade.draw_texture_rect(
             texture,
             arcade.XYWH(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 250, texture.width, texture.height).scale(scale)
@@ -1027,11 +1035,15 @@ class MainMenu(arcade.View):
 
 
 class GameOver(arcade.View):
-    def on_show(self):
-        arcade.set_background_color(arcade.color.DARK_RED)
+    def __init__(self):
+        super().__init__()
+        arcade.set_background_color(arcade.color.BLACK)
+        self.stars = [(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)) for _ in range(100)]  # 100 stars
 
     def on_draw(self):
         self.clear()
+        for star in self.stars:
+            arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE)
         arcade.draw_text("Game Over", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
                          arcade.color.RED, font_size=40, anchor_x="center")
         arcade.draw_text("Press ENTER to Play Again", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 20,
