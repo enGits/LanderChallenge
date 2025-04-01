@@ -5,8 +5,11 @@ import datetime
 import numpy as np
 import random
 
-SCREEN_WIDTH   = 1200
-SCREEN_HEIGHT  = 1200
+SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
+SCREEN_WIDTH  -= 50
+SCREEN_HEIGHT -= 100
+
+
 SCREEN_TITLE   = 'enGits Lunar Lander Challenge'
 NUM_MOUNTAINS  = 1000
 ALT0           = 2.0
@@ -1071,7 +1074,7 @@ class MainMenu(arcade.View):
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
                          arcade.color.YELLOW, font_size=20, anchor_x="center")
-        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+        arcade.draw_text("Press SHIFT-Q to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
@@ -1080,7 +1083,7 @@ class MainMenu(arcade.View):
         elif key == arcade.key.T: 
             tutorial = TutorialView(self)
             self.window.show_view(tutorial)
-        elif key == arcade.key.ESCAPE:
+        elif key == arcade.key.Q and modifiers & arcade.key.MOD_SHIFT:
             arcade.exit()
 
     def start_game(self):
@@ -1141,7 +1144,7 @@ class GameOver(arcade.View):
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("Press T for Tutorial", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
                          arcade.color.YELLOW, font_size=20, anchor_x="center")
-        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+        arcade.draw_text("Press SHIFT-Q", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
@@ -1150,8 +1153,8 @@ class GameOver(arcade.View):
         elif key == arcade.key.T: 
             tutorial = TutorialView(self)
             self.window.show_view(tutorial)
-        elif key == arcade.key.ESCAPE:
-            arcade.exit() 
+        elif key == arcade.key.Q and modifiers & arcade.key.MOD_SHIFT:
+            arcade.exit()
 
     def restart_game(self):
         # print("Game Restarts!")
