@@ -1152,7 +1152,7 @@ class LevelMenu(arcade.View):
                          arcade.color.WHITE, font_size=20, anchor_x="center")
         arcade.draw_text("3. Docking", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 20,
                          arcade.color.WHITE, font_size=20, anchor_x="center")
-        arcade.draw_text("Press ESC to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
+        arcade.draw_text("Press SHIFT-Q to Quit", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 60,
                          arcade.color.YELLOW, font_size=20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
@@ -1162,7 +1162,7 @@ class LevelMenu(arcade.View):
             self.start_game(2)
         elif key == arcade.key.KEY_3 or key == arcade.key.NUM_3: 
             self.start_game(3)
-        elif key == arcade.key.ESCAPE:
+        elif key == arcade.key.Q and modifiers & arcade.key.MOD_SHIFT:
             arcade.exit()
 
     def start_game(self, level):
