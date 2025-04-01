@@ -12,21 +12,30 @@ SCREEN_HEIGHT = 0
 def get_screen_size():
     system = platform.system()
     if system == "Windows":
+        # Do NOT set DPI awareness here!
         try:
-            # Make process DPI aware using Windows API
             import ctypes
-            awareness = ctypes.c_int()
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
-            huser32 = ctypes.windll.user32
-            huser32.SetProcessDPIAware()  # Optional fallback
-            width = huser32.GetSystemMetrics(0)
-            height = huser32.GetSystemMetrics(1)
+            user32 = ctypes.windll.user32
+            width = user32.GetSystemMetrics(0)  # SM_CXSCREEN
+            height = user32.GetSystemMetrics(1) # SM_CYSCREEN
             return width, height
         except Exception as e:
-            print(f"Windows DPI-aware screen size failed, falling back: {e}")
-            return arcade.get_display_size()
+            print(f"Failed to get scaled screen size via ctypes: {e}")
     else:
-        return arcade.get_display_size()
+        # On other platforms, fallback to arcade or tkinter
+        try:
+            import tkinter as tk
+            root = tk.Tk()
+            root.withdraw()
+            width = root.winfo_screenwidth()
+            height = root.winfo_screenheight()
+            root.destroy()
+            return width, height
+        except Exception as e:
+            print(f"Fallback to arcade.get_display_size() due to: {e}")
+
+    import arcade
+    return arcade.get_display_size()
 
 # Get screen dimensions
 SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
