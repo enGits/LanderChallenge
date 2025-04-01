@@ -4,11 +4,36 @@ import sys
 import datetime
 import numpy as np
 import random
+import platform
 
-SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
-SCREEN_WIDTH  -= 50
-SCREEN_HEIGHT -= 100
+SCREEN_WIDTH = 0
+SCREEN_HEIGHT = 0
 
+def get_screen_size():
+    system = platform.system()
+    if system == "Windows":
+        # Use tkinter to get usable screen size accounting for DPI scaling
+        try:
+            import tkinter as tk
+            root = tk.Tk()
+            root.withdraw()
+            width = root.winfo_screenwidth()
+            height = root.winfo_screenheight()
+            root.destroy()
+            return width, height
+        except Exception as e:
+            print(f"Failed to use tkinter, falling back to arcade: {e}")
+            return arcade.get_display_size()
+    else:
+        return arcade.get_display_size()
+
+# Get screen dimensions
+SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
+
+# Optional: Apply margin so the window always fits
+MARGIN         = 70
+SCREEN_WIDTH  -= MARGIN
+SCREEN_HEIGHT -= MARGIN
 
 SCREEN_TITLE   = 'enGits Lunar Lander Challenge'
 NUM_MOUNTAINS  = 1000
