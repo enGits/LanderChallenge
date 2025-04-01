@@ -6,26 +6,27 @@ import numpy as np
 import random
 import platform
 
-SCREEN_WIDTH = 0
+SCREEN_WIDTH  = 0
 SCREEN_HEIGHT = 0
 
 def get_screen_size():
     system = platform.system()
     if system == "Windows":
-        # Use tkinter to get usable screen size accounting for DPI scaling
         try:
-            import tkinter as tk
-            root = tk.Tk()
-            root.withdraw()
-            width = root.winfo_screenwidth()
-            height = root.winfo_screenheight()
-            root.destroy()
+            import ctypes
+            user32 = ctypes.windll.user32
+            user32.SetProcessDPIAware()  # Makes the process DPI-aware
+            width = user32.GetSystemMetrics(0)
+            height = user32.GetSystemMetrics(1)
             return width, height
         except Exception as e:
-            print(f"Failed to use tkinter, falling back to arcade: {e}")
+            print(f"Windows DPI-aware screen size failed, falling back: {e}")
             return arcade.get_display_size()
     else:
         return arcade.get_display_size()
+
+# Get screen dimensions
+SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
 
 # Get screen dimensions
 SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
