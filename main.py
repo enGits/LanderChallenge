@@ -9,6 +9,11 @@ import platform
 SCREEN_WIDTH  = 0
 SCREEN_HEIGHT = 0
 
+IMAGE_PREFIX = ''
+
+if hasattr(sys, '_MEIPASS'):
+    IMAGE_PREFIX = sys._MEIPASS + '/'
+
 def get_screen_size():
     system = platform.system()
     if system == "Windows":
@@ -341,7 +346,7 @@ class Spacecraft(Body):
         self.sprite = arcade.Sprite(filename, scale)
         for i in range(1,5):
             _file = filename.replace('01', '{:0>2d}'.format(i+1))
-            self.sprite.append_texture(arcade.load_texture(_file))
+            self.sprite.append_texture(arcade.load_texture(IMAGE_PREFIX + _file))
         self.sprite.set_texture(0)
         game.sprite_list.append(self.sprite)
         self.thrust_level = 0
@@ -810,14 +815,14 @@ class OrbitGame(arcade.View):
         if self.control_craft.name == "Moon":
             arcade.draw_circle_filled(x, y, 20 // 2, arcade.color.LIGHT_GRAY)  # A simple circle for the Moon
         elif self.control_craft.name == "Main Craft":
-            texture = arcade.load_texture("craft_01.png")
+            texture = arcade.load_texture(IMAGE_PREFIX + "craft_01.png")
             scale = .06
             arcade.draw_texture_rect(
                 texture,
                 arcade.XYWH(x, y, texture.width, texture.height).scale(scale)
             )
         elif self.control_craft.name == "Lander":
-            texture = arcade.load_texture("lander_01.png")
+            texture = arcade.load_texture(IMAGE_PREFIX + "lander_01.png")
             scale = .05
             arcade.draw_texture_rect(
                 texture,
@@ -1100,7 +1105,7 @@ class MainMenu(arcade.View):
         self.clear()
         for star in self.stars:
             arcade.draw_circle_filled(star[0], star[1], 1, arcade.color.WHITE) 
-        texture = arcade.load_texture("logo.png")
+        texture = arcade.load_texture(IMAGE_PREFIX + "logo.png")
         scale = .5
         arcade.draw_texture_rect(
             texture,
