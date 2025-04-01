@@ -13,11 +13,14 @@ def get_screen_size():
     system = platform.system()
     if system == "Windows":
         try:
+            # Make process DPI aware using Windows API
             import ctypes
-            user32 = ctypes.windll.user32
-            user32.SetProcessDPIAware()  # Makes the process DPI-aware
-            width = user32.GetSystemMetrics(0)
-            height = user32.GetSystemMetrics(1)
+            awareness = ctypes.c_int()
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+            huser32 = ctypes.windll.user32
+            huser32.SetProcessDPIAware()  # Optional fallback
+            width = huser32.GetSystemMetrics(0)
+            height = huser32.GetSystemMetrics(1)
             return width, height
         except Exception as e:
             print(f"Windows DPI-aware screen size failed, falling back: {e}")
