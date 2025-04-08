@@ -6,6 +6,7 @@ import numpy as np
 import random
 import platform
 
+
 SCREEN_WIDTH  = 0
 SCREEN_HEIGHT = 0
 
@@ -35,15 +36,13 @@ def get_screen_size():
             width = root.winfo_screenwidth()
             height = root.winfo_screenheight()
             root.destroy()
-            return width, height
+            width_divisor = len(screeninfo.get_monitors())
+            return width // width_divisor, height
+            
         except Exception as e:
             print(f"Fallback to arcade.get_display_size() due to: {e}")
+            return arcade.get_display_size()
 
-    import arcade
-    return arcade.get_display_size()
-
-# Get screen dimensions
-SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
 
 # Get screen dimensions
 SCREEN_WIDTH, SCREEN_HEIGHT = get_screen_size()
